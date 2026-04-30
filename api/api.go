@@ -1,0 +1,127 @@
+package api
+
+import (
+	"animein/models"
+	"animein/utils"
+	"encoding/json"
+	"fmt"
+	"log"
+	"slices"
+	"sync"
+)
+
+var (
+	episodeCache = make(map[string][]models.Episode)
+	cacheLock    sync.RWMutex
+)
+
+const BaseURL = "https://animeinweb.com/"
+const baseEndpoint = BaseURL + "/api/proxy/3/2/"
+
+func GetDetails(animeID string) models.Movie {
+	targetURL := fmt.Sprintf("%smovie/detail/%s", baseEndpoint, animeID)
+	resp, err := utils.Request(targetURL)
+	if err != nil {
+		log.Fatalf("Waduh, error nih: %v", err)
+		return models.Movie{}
+	}
+	defer resp.Body.Close()
+
+	var info models.Detail
+	json.NewDecoder(resp.Body).Decode(&info)
+	return info.Data.MovieData
+}
+
+func GetEpisodesPage(animeID string, pageNum int) ([]models.Episode, error) {
+	targetURL := fmt.Sprintf("%smovie/episode/%s?page=%d", baseEndpoint, animeID, pageNum)
+	res, err := utils.Request(targetURL)
+	if err != nil {
+		return nil, fmt.Errorf("GetEpisodesPage request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	var eps models.Episodes
+	if err := json.NewDecoder(res.Body).Decode(&eps); err != nil {
+		return nil, fmt.Errorf("GetEpisodesPage decode failed: %w", err)
+	}
+	return eps.Data.Episode, nil
+}
+
+func GetEpisodesCached(animeID string, pageNum int) ([]models.Episode, error) {
+	cacheKey := fmt.Sprintf("%s-%d", animeID, pageNum)
+	cacheLock.RLock()
+	data, found := episodeCache[cacheKey]
+	cacheLock.RUnlock()
+
+	if found {
+		return data, nil
+	}
+
+	data, err := GetEpisodesPage(animeID, pageNum)
+	if err != nil {
+		return nil, err
+	}
+	cacheLock.Lock()
+	episodeCache[cacheKey] = data
+	cacheLock.Unlock()
+	return data, nil
+}
+
+func GetPageCount(animeID string) (int, error) {
+	eps, err := GetEpisodesCached(animeID, 0)
+	if err != nil {
+		return 0, fmt.Errorf("GetPageCount -> %w", err)
+	}
+	if len(eps) == 0 {
+		return 0, fmt.Errorf("id:%s belum rilis", animeID)
+	}
+	lastEp := utils.StrToInt(eps[0].Index)
+	if lastEp <= 30 {
+		return 0, nil
+	}
+	return (lastEp + 29) / 30, nil
+}
+
+func ParseEpisodes(episodes []models.Episode) <-chan string {
+	slices.Reverse(episodes)
+	ch := make(chan string)
+	go func() {
+		defer close(ch)
+		for _, ep := range episodes {
+			ch <- ep.ID
+		}
+	}()
+	return ch
+}
+
+func GetEpisodeInfo(episodeID string) []models.Server {
+	targetURL := fmt.Sprintf("%sepisode/streamnew/%s", baseEndpoint, episodeID)
+	res, err := utils.Request(targetURL)
+	if err != nil {
+		return nil
+	}
+	defer res.Body.Close()
+
+	var info models.ServerResponse
+	json.NewDecoder(res.Body).Decode(&info)
+	return info.Data.Server
+}
+
+func SearchAnime(keyWord string) ([]models.Movie, error) {
+	res, err := utils.SearchRequest(keyWord)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var info models.Movies
+	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
+		return nil, err
+	}
+	if len(info.Data.Movie) == 0 {
+		return nil, fmt.Errorf("tidak ketemu: '%s'", keyWord)
+	}
+	return info.Data.Movie, nil
+}
+
+// vim: ft=go
