@@ -8,27 +8,32 @@ No bloat, pure Go (Bahasa Kudanil), sat-set wat-wet.**
 
 ## Requirement
 - **[mpv](https://github.com/mpv-player/mpv)**	<- Termux ga butuh ini
-- **[go 1.26.2++](https://go.dev/dl/ "kudanil err != nil")**
+- **[go 1.26.2++](https://go.dev/dl/ "kudanil err != nil")** <- wajib buat compile
 - **make** <- opsional
 
 
 ## Install
 
+> **⚠️ Hanya untuk keluarga Gnu/Linux or unix style**
 - **Menggunakan make (rekomendasi)**
+
 
 ```bash
 git clone https://codeberg.org/Asep5K/animein.git
 cd animein
 make install
 ```
-- **Manual (malas banget)**
 
+- **Manual (malas banget)**
 ```bash
 git clone https://codeberg.org/Asep5K/animein.git
 cd animein
 go build -o animein main.go
 mv animein ~/.local/bin
 ```
+
+> **Jika kamu menggunakan Windows:**
+> Cukup jalankan `go build -o animein.exe main.go` dan tambahkan folder binary-nya ke dalam **Path Environment Variables**. <- ngarang btw
 ---
 
 ## Usage
@@ -44,3 +49,4 @@ animein
 ```
 ---
 
+<!-- vim: ft=markdown

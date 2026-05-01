@@ -1,30 +1,32 @@
 package utils
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
-	"strings"
+
+	"github.com/manifoldco/promptui"
 )
 
 // Convert string to integer
 func StrToInt(str string) int {
 	num, err := strconv.Atoi(str)
 	if err != nil {
-		fmt.Println("Failed to converting to integer")
+		fmt.Println("✘ Failed to converting to integer")
 		return -1
 	}
 	return num
 }
 
-func InputUser(prompt string, reader *bufio.Reader) string {
-	fmt.Print(prompt)
-	input, _ := reader.ReadString('\n')
-	return strings.TrimSpace(input)
-}
+/*
+	func InputUser(prompt string, reader *bufio.Reader) string {
+		fmt.Print(prompt)
+		input, _ := reader.ReadString('\n')
+		return strings.TrimSpace(input)
+	}
+*/
 
 func ClearScreen() {
 	var cmd *exec.Cmd
@@ -38,6 +40,17 @@ func ClearScreen() {
 	}
 	cmd.Stdout = os.Stdout
 	cmd.Run()
+}
+
+func InputUser(Label string) (string, error) {
+	prompt := promptui.Prompt{
+		Label: Label,
+	}
+	result, err := prompt.Run()
+	if err != nil {
+		return "", fmt.Errorf("✘ Prompt failed: %v", err)
+	}
+	return result, nil
 }
 
 // vim: ft=go

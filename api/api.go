@@ -82,13 +82,16 @@ func GetPageCount(animeID string) (int, error) {
 	return (lastEp + 29) / 30, nil
 }
 
-func ParseEpisodes(episodes []models.Episode) <-chan string {
+func ParseEpisodes(episodes []models.Episode) <-chan models.EpisodeResult {
 	slices.Reverse(episodes)
-	ch := make(chan string)
+	ch := make(chan models.EpisodeResult)
 	go func() {
 		defer close(ch)
 		for _, ep := range episodes {
-			ch <- ep.ID
+			ch <- models.EpisodeResult{
+				ID:      ep.ID,
+				EpTitle: ep.EpTitle,
+			}
 		}
 	}()
 	return ch
@@ -119,7 +122,7 @@ func SearchAnime(keyWord string) ([]models.Movie, error) {
 		return nil, err
 	}
 	if len(info.Data.Movie) == 0 {
-		return nil, fmt.Errorf("tidak ketemu: '%s'", keyWord)
+		return nil, fmt.Errorf("Tidak menemukan: '%s'", keyWord)
 	}
 	return info.Data.Movie, nil
 }

@@ -7,10 +7,10 @@ type Episodes struct {
 }
 
 type Episode struct {
-	ID           string `json:"id"`
-	Index        string `json:"index"`
-	EpisodeTitle string `json:"title"`
-	Image        string `json:"image"`
+	ID      string `json:"id"`
+	EpTitle string `json:"title"`
+	Index   string `json:"index"`
+	// Image        string `json:"image"`
 }
 
 type Detail struct {
@@ -20,11 +20,13 @@ type Detail struct {
 }
 
 type Movie struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"synopsis"`
-	AltTitle    string `json:"synonyms"`
-	Genre       string `json:"genre"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	/*
+		Description string `json:"synopsis"`
+		AltTitle    string `json:"synonyms"`
+		Genre       string `json:"genre"`
+	*/
 }
 
 // search
@@ -41,11 +43,21 @@ type ServerResponse struct {
 }
 
 type Server struct {
-	ID       string `json:"id"`
-	Link     string `json:"link"`
-	Quality  string `json:"quality"`
-	Type     string `json:"type"`
-	FileSize string `json:"key_file_size"`
+	ID      string `json:"id"`
+	Link    string `json:"link"`
+	Quality string `json:"quality"`
+	Type    string `json:"type"`
+	// FileSize string `json:"key_file_size"`
+}
+
+type EpisodeResult struct {
+	ID      string
+	EpTitle string
+}
+
+type FinalData struct {
+	Info    []Server
+	EpTitle string
 }
 
 // vim: ft=go

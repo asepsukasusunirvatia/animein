@@ -1,7 +1,10 @@
 PKGNAME  := animein
 BUILDDIR := build
+PREFIX 	 := "$(HOME)/.local"
 BINARY   := $(BUILDDIR)/$(PKGNAME)
 QUERY 	 := "Keikenzumi na Kimi to, Keiken Zero na Ore ga, Otsukiai suru Hanashi"
+LDFLAGS  := -s -w
+
 
 # Default target
 .PHONY: all
@@ -11,7 +14,8 @@ all: build
 build:
 	@mkdir -p $(BUILDDIR)
 	@echo "Building for Current OS..."
-	go build -o $(BINARY) ./main.go
+	go build -ldflags="$(LDFLAGS)" -o $(BINARY) ./main.go
+	@echo "Done..."
 
 .PHONY: run
 run: build
@@ -25,8 +29,13 @@ clean:
 
 .PHONY: install
 install: build
+	@mkdir -p "$(PREFIX)/bin"
 	@echo "Installing to $(HOME)/local/bin..."
-	cp $(BINARY) $(HOME)/.local/bin/$(PKGNAME)
+	cp $(BINARY) "$(PREFIX)/bin/$(PKGNAME)"
+
+.PHONY: uninstall
+uninstall:
+	rm -f "$(PREFIX)/bin/$(PKGNAME)"
 
 .PHONY: search
 search: build

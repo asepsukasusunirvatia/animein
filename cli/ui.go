@@ -5,10 +5,8 @@ import (
 	"animein/models"
 	"animein/player"
 	"animein/utils"
-	"bufio"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,7 +54,6 @@ func GetAnimeID(initialQuery string) (string, string) {
 	var titles []string
 	for _, anime := range result {
 		titles = append(titles, anime.Title)
-		// fmt.Printf("%d. %s\n", i+1, anime.Title)
 	}
 
 	// settup promp
@@ -76,9 +73,11 @@ func GetAnimeID(initialQuery string) (string, string) {
 }
 
 func TrySearch() []models.Movie {
-	var reader = bufio.NewReader(os.Stdin)
 	for i := 0; i < 3; i++ {
-		input := utils.InputUser("Masukan judul anime: ", reader)
+		input, err := utils.InputUser("Masukan judul")
+		if err != nil {
+			return nil
+		}
 		utils.ClearScreen()
 		res, err := api.SearchAnime(input)
 		if err == nil {
@@ -93,9 +92,10 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	allResults := make(map[string][]models.Server)
+	// allResults := make(map[string][]models.Server)
+	allResults := make(map[string]models.FinalData)
 	var idList []string
-
+	var epLabels []string
 	fmt.Println("Loading episodes...")
 	for i := pageCount; i >= 0; i-- {
 		episodesPage, err := api.GetEpisodesCached(animeID, i)
@@ -103,35 +103,32 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 			fmt.Printf("\033[31m[!]\033[0m Skip halaman %d gara-gara error: %v\n", i, err)
 			continue
 		}
-		epIDChan := api.ParseEpisodes(episodesPage)
-
-		for epID := range epIDChan {
+		results := api.ParseEpisodes(episodesPage)
+		for ep := range results {
 			wg.Add(1)
 			mu.Lock()
-			idList = append(idList, epID)
+			idList = append(idList, ep.ID)
+			epLabels = append(epLabels, fmt.Sprintf("%s %s", animeTitle, ep.EpTitle))
 			mu.Unlock()
 
-			go func(id string) {
+			go func(id string, idx string) {
 				defer wg.Done()
 				info := api.GetEpisodeInfo(id)
 				mu.Lock()
-				allResults[id] = info
+				allResults[id] = models.FinalData{
+					Info:    info,
+					EpTitle: idx,
+				}
 				mu.Unlock()
-			}(epID)
+			}(ep.ID, ep.EpTitle)
 		}
-		wg.Wait()
 	}
+	wg.Wait()
+
+	epLabels = append(epLabels, "Keluar (Quit)") // Tambahin opsi keluar
 
 	for { // infinity loop
 		utils.ClearScreen()
-
-		var epLabels []string
-		for i := range idList {
-			epLabels = append(epLabels, fmt.Sprintf("%s Episode %d", animeTitle, i+1))
-
-		}
-		epLabels = append(epLabels, "Keluar (Quit)") // Tambahin opsi keluar
-
 		prompt := promptui.Select{
 			Label: "Pilih Episode",
 			Items: epLabels,
@@ -148,9 +145,10 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 		}
 
 		selectedID := idList[idx]
-		servers := allResults[selectedID]
+		dataEpisode := allResults[selectedID]
+
 		var directServers []models.Server
-		for _, s := range servers {
+		for _, s := range dataEpisode.Info {
 			if s.Type == "direct" {
 				directServers = append(directServers, s)
 			}
@@ -178,6 +176,6 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 		if resIdx == len(directServers) {
 			continue
 		}
-		player.PlayVideo(directServers[resIdx].Link, animeTitle, " Ep "+strconv.Itoa(idx+1))
+		player.PlayVideo(directServers[resIdx].Link, animeTitle, " "+dataEpisode.EpTitle)
 	}
 }
