@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"net/http"
 )
 
@@ -44,14 +45,19 @@ func SearchRequest(keyWord string) (*http.Response, error) {
 	if err != nil {
 		return nil, fmt.Errorf("utils.SearchRequest failed: %w", err)
 	}
-
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("utils.SearchRequest failed: %d (%s)", res.StatusCode, res.Status)
+	}
 	return res, nil
 }
 
 func setHeaders(req *http.Request) {
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")
+	userAgent := fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.0.0 Safari/537.36", 137+rand.IntN(7))
+	req.Header.Set("Proxy-Connection", "keep-alive")
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("x-proxy-secret", "animein-secure-proxy-key-123")
 	req.Header.Set("Referer", "https://animeinweb.com/")
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 }
 
 // vim: ft=go

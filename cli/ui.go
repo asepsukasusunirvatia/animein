@@ -89,14 +89,14 @@ func TrySearch() []models.Movie {
 }
 
 func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
+	stopLoading := utils.Loading("Fetching episodes for " + animeTitle)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	// allResults := make(map[string][]models.Server)
 	allResults := make(map[string]models.FinalData)
 	var idList []string
 	var epLabels []string
-	fmt.Println("Loading episodes...")
+
 	for i := pageCount; i >= 0; i-- {
 		episodesPage, err := api.GetEpisodesCached(animeID, i)
 		if err != nil {
@@ -124,8 +124,9 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 		}
 	}
 	wg.Wait()
+	stopLoading <- true
 
-	epLabels = append(epLabels, "Keluar (Quit)") // Tambahin opsi keluar
+	epLabels = append(epLabels, "Keluar") // Tambahin opsi keluar
 
 	for { // infinity loop
 		utils.ClearScreen()
@@ -135,12 +136,12 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 			Size:  15,
 		}
 
-		idx, _, err := prompt.Run()
+		idx, epInfo, err := prompt.Run()
 		if err != nil {
 			return
 		}
 		// Kalau milih opsi paling bawah (Keluar)
-		if idx == len(idList) {
+		if epInfo == "Keluar" {
 			return
 		}
 
@@ -169,13 +170,17 @@ func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
 			Label: "Pilih resolusi",
 			Items: resLabels,
 		}
-		resIdx, _, err := resPrompt.Run()
+
+		resIdx, res, err := resPrompt.Run()
 		if err != nil {
+			return
+		}
+		if res == "Kembali" {
 			continue
 		}
-		if resIdx == len(directServers) {
-			continue
-		}
-		player.PlayVideo(directServers[resIdx].Link, animeTitle, " "+dataEpisode.EpTitle)
+		fmt.Println(epInfo)
+		player.PlayVideo(directServers[resIdx].Link, epInfo)
 	}
 }
+
+// vim: ft=go

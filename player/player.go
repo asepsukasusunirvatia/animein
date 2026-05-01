@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func PlayVideo(url string, title string, epInfo string) {
+func PlayVideo(url string, epInfo string) {
 	utils.ClearScreen()
 	if os.Getenv("ANDROID_DATA") == "/data" {
 		cmd := exec.Command("termux-open", url)
@@ -19,14 +19,14 @@ func PlayVideo(url string, title string, epInfo string) {
 		return
 	}
 
-	argTitle := "--title=Animein CLI - " + title + epInfo
-	argMediaTitle := "--force-media-title=" + title + epInfo
+	argTitle := "--title=Animein CLI - " + epInfo
+	argMediaTitle := "--force-media-title=" + epInfo
 
 	cmd := exec.Command("mpv", url, "--referrer="+api.BaseURL, "--cache=yes", argMediaTitle, argTitle)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Printf("Gagal muter MPV: %v\n", err)
+		fmt.Printf("✘ Gagal muter MPV: %v\n", err)
 		time.Sleep(3 * time.Second)
 	}
 }
