@@ -1,8 +1,8 @@
 package main
 
 import (
-	"animein/cli"
-	"animein/utils"
+	"codeberg.org/Asep5K/animein/cli"
+	"codeberg.org/Asep5K/animein/utils"
 )
 
 func main() {

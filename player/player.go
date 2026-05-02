@@ -1,7 +1,7 @@
 package player
 
 import (
-	"animein/api"
+	"codeberg.org/Asep5K/animein/api"
 	"fmt"
 	"os"
 	"os/exec"

@@ -1,4 +1,4 @@
-module animein
+module codeberg.org/Asep5K/animein
 
 go 1.26.2
 

@@ -1,10 +1,10 @@
 package cli
 
 import (
-	"animein/api"
-	"animein/models"
-	"animein/player"
-	"animein/utils"
+	"codeberg.org/Asep5K/animein/api"
+	"codeberg.org/Asep5K/animein/models"
+	"codeberg.org/Asep5K/animein/player"
+	"codeberg.org/Asep5K/animein/utils"
 	"fmt"
 	"os"
 	"slices"
@@ -20,7 +20,7 @@ func StartApp() {
 		query = strings.Join(os.Args[1:], " ")
 	}
 
-	animeID, title := getAnimeID(query)
+	animeID, title := getAniID(query)
 	if animeID == "" {
 		return
 	}
@@ -33,7 +33,7 @@ func StartApp() {
 	processAndSelect(animeID, title, count)
 }
 
-func getAnimeID(initialQuery string) (string, string) {
+func getAniID(initialQuery string) (string, string) {
 	var result []models.Movie
 	if initialQuery != "" {
 		res, err := api.SearchAnime(initialQuery)

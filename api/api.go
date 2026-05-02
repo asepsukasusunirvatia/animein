@@ -1,38 +1,27 @@
 package api
 
 import (
-	"animein/models"
-	"animein/utils"
+	"codeberg.org/Asep5K/animein/models"
+	"codeberg.org/Asep5K/animein/utils"
 	"encoding/json"
 	"fmt"
 	"sync"
 )
 
 var (
-	episodeCache, streamCache = make(map[string][]models.Episode), make(map[string][]models.Server)
-	cacheLock                 sync.RWMutex
+	// episodeCache,streamCache = make(map[string][]models.Episode), make(map[string][]models.Server)
+	streamCache  = make(map[string][]models.Server)
+	episodeCache = make(map[string][]models.Episode)
+	cacheLock    sync.RWMutex
 )
 
-const BaseURL = "https://animeinweb.com/"
-const baseEndpoint = BaseURL + "/api/proxy/3/2/"
+const (
+	BaseURL      = "https://animeinweb.com/"
+	baseEndpoint = BaseURL + "/api/proxy/3/2/"
+)
 
-/*
-	func GetDetails(animeID string) models.Movie {
-		targetURL := fmt.Sprintf("%smovie/detail/%s", baseEndpoint, animeID)
-		resp, err := utils.Request(targetURL)
-		if err != nil {
-			log.Fatalf("Waduh, error nih: %v", err)
-			return models.Movie{}
-		}
-		defer resp.Body.Close()
-
-		var info models.Detail
-		json.NewDecoder(resp.Body).Decode(&info)
-		return info.Data.MovieData
-	}
-*/
-func reqEpsPage(animeID string, pageNum int) ([]models.Episode, error) {
-	targetURL := fmt.Sprintf("%smovie/episode/%s?page=%d", baseEndpoint, animeID, pageNum)
+func reqEpsPage(aniID string, pageNum int) ([]models.Episode, error) {
+	targetURL := fmt.Sprintf("%smovie/episode/%s?page=%d", baseEndpoint, aniID, pageNum)
 	res, err := utils.Request(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("GetEpisodesPage request failed: %w", err)
@@ -46,8 +35,8 @@ func reqEpsPage(animeID string, pageNum int) ([]models.Episode, error) {
 	return eps.Data.Episode, nil
 }
 
-func GetEpisodesCached(animeID string, pageNum int) ([]models.Episode, error) {
-	cacheKey := fmt.Sprintf("%s-%d", animeID, pageNum)
+func GetEpisodesCached(aniID string, pageNum int) ([]models.Episode, error) {
+	cacheKey := fmt.Sprintf("%s-%d", aniID, pageNum)
 	cacheLock.RLock()
 	data, found := episodeCache[cacheKey]
 	cacheLock.RUnlock()
@@ -56,7 +45,7 @@ func GetEpisodesCached(animeID string, pageNum int) ([]models.Episode, error) {
 		return data, nil
 	}
 
-	data, err := reqEpsPage(animeID, pageNum)
+	data, err := reqEpsPage(aniID, pageNum)
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +55,13 @@ func GetEpisodesCached(animeID string, pageNum int) ([]models.Episode, error) {
 	return data, nil
 }
 
-func GetPageCount(animeID string) (int, error) {
-	eps, err := GetEpisodesCached(animeID, 0)
+func GetPageCount(aniID string) (int, error) {
+	eps, err := GetEpisodesCached(aniID, 0)
 	if err != nil {
 		return 0, fmt.Errorf("GetPageCount -> %w", err)
 	}
 	if len(eps) == 0 {
-		return 0, fmt.Errorf("\033[9mid\033: '%s' belum rilis!\033[0m", animeID)
+		return 0, fmt.Errorf("\033[9mid\033: '%s' belum rilis!\033[0m", aniID)
 	}
 	lastEp := utils.StrToInt(eps[0].Index)
 	if lastEp <= 30 {
@@ -95,8 +84,8 @@ func ParseEpisodes(episodes []models.Episode) <-chan models.EpisodeResult {
 	return ch
 }
 
-func reqEpsInfo(episodeID string) []models.Server {
-	targetURL := fmt.Sprintf("%sepisode/streamnew/%s", baseEndpoint, episodeID)
+func reqEpsInfo(epID string) []models.Server {
+	targetURL := fmt.Sprintf("%sepisode/streamnew/%s", baseEndpoint, epID)
 	res, err := utils.Request(targetURL)
 	if err != nil {
 		return nil
@@ -108,18 +97,18 @@ func reqEpsInfo(episodeID string) []models.Server {
 	return info.Data.Server
 }
 
-func GetEpsInfo(episodeId string) []models.Server {
+func GetEpsInfo(epId string) []models.Server {
 	cacheLock.RLock()
-	data, found := streamCache[episodeId]
+	data, found := streamCache[epId]
 	cacheLock.RUnlock()
 
 	if found {
 		return data
 	}
 
-	epsInfo := reqEpsInfo(episodeId)
+	epsInfo := reqEpsInfo(epId)
 	cacheLock.Lock()
-	streamCache[episodeId] = epsInfo
+	streamCache[epId] = epsInfo
 	cacheLock.Unlock()
 	return epsInfo
 }
