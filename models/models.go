@@ -55,9 +55,4 @@ type EpisodeResult struct {
 	EpTitle string
 }
 
-type FinalData struct {
-	Info    []Server
-	EpTitle string
-}
-
 // vim: ft=go

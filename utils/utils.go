@@ -2,9 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -21,26 +18,8 @@ func StrToInt(str string) int {
 	return num
 }
 
-/*
-	func InputUser(prompt string, reader *bufio.Reader) string {
-		fmt.Print(prompt)
-		input, _ := reader.ReadString('\n')
-		return strings.TrimSpace(input)
-	}
-*/
-
 func ClearScreen() {
-	var cmd *exec.Cmd
-
-	// aku gak tau ini jalan di windows apa engga
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", "cls")
-	} else {
-		// Untuk Linux dan macOS
-		cmd = exec.Command("clear")
-	}
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	fmt.Print("\033[H\033[2J")
 }
 
 func InputUser(Label string) (string, error) {

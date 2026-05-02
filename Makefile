@@ -3,18 +3,18 @@ BUILDDIR := build
 PREFIX 	 := "$(HOME)/.local"
 BINARY   := $(BUILDDIR)/$(PKGNAME)
 QUERY 	 := "Keikenzumi na Kimi to, Keiken Zero na Ore ga, Otsukiai suru Hanashi"
-LDFLAGS  := -s -w
+LDFLAGS  := -s -w -buildid=
 
 
 # Default target
 .PHONY: all
-all: build
+all: install clean
 
 .PHONY: build
 build:
 	@mkdir -p $(BUILDDIR)
 	@echo "Building for Current OS..."
-	go build -ldflags="$(LDFLAGS)" -o $(BINARY) ./main.go
+	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) ./main.go
 	@echo "Done..."
 
 .PHONY: run
@@ -28,10 +28,10 @@ clean:
 	rm -rf $(BUILDDIR)
 
 .PHONY: install
-install: build
+install: clean build
 	@mkdir -p "$(PREFIX)/bin"
 	@echo "Installing to $(HOME)/local/bin..."
-	cp $(BINARY) "$(PREFIX)/bin/$(PKGNAME)"
+	mv $(BINARY) "$(PREFIX)/bin"
 
 .PHONY: uninstall
 uninstall:
@@ -47,4 +47,3 @@ fmt:
 	go fmt ./...
 
 # vim: ft=make
-

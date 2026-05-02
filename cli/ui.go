@@ -7,8 +7,8 @@ import (
 	"animein/utils"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/manifoldco/promptui"
@@ -20,31 +20,31 @@ func StartApp() {
 		query = strings.Join(os.Args[1:], " ")
 	}
 
-	animeID, title := GetAnimeID(query)
+	animeID, title := getAnimeID(query)
 	if animeID == "" {
 		return
 	}
 
 	count, err := api.GetPageCount(animeID)
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
-	ProcessAndSelect(animeID, title, count)
+	processAndSelect(animeID, title, count)
 }
 
-func GetAnimeID(initialQuery string) (string, string) {
-
+func getAnimeID(initialQuery string) (string, string) {
 	var result []models.Movie
 	if initialQuery != "" {
 		res, err := api.SearchAnime(initialQuery)
 		if err != nil {
 			fmt.Printf("✘ %v\n", err)
-			result = TrySearch()
+			result = trySearch()
 		} else {
 			result = res
 		}
 	} else {
-		result = TrySearch()
+		result = trySearch()
 	}
 
 	if len(result) == 0 {
@@ -72,9 +72,9 @@ func GetAnimeID(initialQuery string) (string, string) {
 	return result[idx].ID, result[idx].Title
 }
 
-func TrySearch() []models.Movie {
+func trySearch() []models.Movie {
 	for i := 0; i < 3; i++ {
-		input, err := utils.InputUser("Masukan judul")
+		input, err := utils.InputUser("\033[94mMasukan judul")
 		if err != nil {
 			return nil
 		}
@@ -88,98 +88,106 @@ func TrySearch() []models.Movie {
 	return nil
 }
 
-func ProcessAndSelect(animeID string, animeTitle string, pageCount int) {
-	stopLoading := utils.Loading("Fetching episodes for " + animeTitle)
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+func getSortedEpisodes(animeID string, page int) ([]string, []string, error) {
+	episodesPage, err := api.GetEpisodesCached(animeID, page)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ERORR: %v", err)
+	}
 
-	allResults := make(map[string]models.FinalData)
-	var idList []string
-	var epLabels []string
+	var ids, labels []string
+	episodes := api.ParseEpisodes(episodesPage)
+	for ep := range episodes {
+		ids = append(ids, ep.ID)
+		labels = append(labels, ep.EpTitle)
+	}
 
-	for i := pageCount; i >= 0; i-- {
-		episodesPage, err := api.GetEpisodesCached(animeID, i)
-		if err != nil {
-			fmt.Printf("\033[31m[!]\033[0m Skip halaman %d gara-gara error: %v\n", i, err)
-			continue
-		}
-		results := api.ParseEpisodes(episodesPage)
-		for ep := range results {
-			wg.Add(1)
-			mu.Lock()
-			idList = append(idList, ep.ID)
-			epLabels = append(epLabels, fmt.Sprintf("%s %s", animeTitle, ep.EpTitle))
-			mu.Unlock()
+	slices.Reverse(ids)
+	slices.Reverse(labels)
+	return ids, labels, nil
+}
 
-			go func(id string, idx string) {
-				defer wg.Done()
-				info := api.GetEpisodeInfo(id)
-				mu.Lock()
-				allResults[id] = models.FinalData{
-					Info:    info,
-					EpTitle: idx,
-				}
-				mu.Unlock()
-			}(ep.ID, ep.EpTitle)
+func selectResolution(episodeID string) (string, error) {
+	epsInfo := api.GetEpsInfo(episodeID)
+	var labels, links []string
+
+	for _, srv := range epsInfo {
+		if srv.Type == "direct" {
+			labels = append(labels, srv.Quality)
+			links = append(links, srv.Link)
 		}
 	}
-	wg.Wait()
-	stopLoading <- true
+	labels = append(labels, "Kembali")
 
-	epLabels = append(epLabels, "Keluar") // Tambahin opsi keluar
+	prompt := promptui.Select{
+		Label: "Pilih resolusi:",
+		Items: labels,
+	}
+	idx, str, err := prompt.Run()
+	if err != nil {
+		return "", fmt.Errorf("errr %w", err)
+	}
+	if str == "Kembali" {
+		return str, nil
+	}
+	return links[idx], err
+}
 
-	for { // infinity loop
+func processAndSelect(animeID string, animeTitle string, pageCount int) {
+	currentPage := pageCount
+	nextPage, prevPage := "Page selanjut nya >>", "Page sebelum nya <<"
+
+	for {
 		utils.ClearScreen()
+		idList, epLabels, err := getSortedEpisodes(animeID, currentPage)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		// Tambah navigasi
+		if currentPage > 0 {
+			epLabels = append(epLabels, nextPage)
+		}
+		if currentPage < pageCount {
+			epLabels = append(epLabels, prevPage)
+		}
+		epLabels = append(epLabels, "Keluar")
 		prompt := promptui.Select{
-			Label: "Pilih Episode",
+			Label: fmt.Sprintf("Pilih Episode (Page %d):", currentPage),
 			Items: epLabels,
-			Size:  15,
+			Size:  12,
 		}
 
-		idx, epInfo, err := prompt.Run()
+		idx, resultStr, err := prompt.Run()
 		if err != nil {
 			return
 		}
-		// Kalau milih opsi paling bawah (Keluar)
-		if epInfo == "Keluar" {
+
+		// Navigasi Page
+		switch resultStr {
+		case nextPage:
+			currentPage--
+			continue
+		case prevPage:
+			currentPage++
+			continue
+		case "Keluar":
+			utils.ClearScreen()
 			return
 		}
 
-		selectedID := idList[idx]
-		dataEpisode := allResults[selectedID]
-
-		var directServers []models.Server
-		for _, s := range dataEpisode.Info {
-			if s.Type == "direct" {
-				directServers = append(directServers, s)
-			}
-		}
-
-		if len(directServers) == 0 {
-			fmt.Println("Gak ada link direct!")
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		var resLabels []string
-		for _, s := range directServers {
-			resLabels = append(resLabels, s.Quality)
-		}
-		resLabels = append(resLabels, "Kembali")
-		resPrompt := promptui.Select{
-			Label: "Pilih resolusi",
-			Items: resLabels,
-		}
-
-		resIdx, res, err := resPrompt.Run()
+		// Ambil url & Play
+		url, err := selectResolution(idList[idx])
+		fmt.Println(url)
 		if err != nil {
+			fmt.Printf("Error: %v", err)
+			time.Sleep(5 * time.Second)
 			return
 		}
-		if res == "Kembali" {
+		if url == "Kembali" {
 			continue
 		}
-		fmt.Println(epInfo)
-		player.PlayVideo(directServers[resIdx].Link, epInfo)
+		player.PlayVideo(url, animeTitle)
 	}
 }
 
