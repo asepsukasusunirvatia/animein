@@ -1,25 +1,18 @@
 package utils
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
-	"strconv"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/manifoldco/promptui"
 )
 
-// Convert string to integer
-func StrToInt(str string) int {
-	num, err := strconv.Atoi(str)
-	if err != nil {
-		fmt.Println("✘ Failed to converting to integer")
-		return -1
-	}
-	return num
-}
-
 func ClearScreen() {
-	fmt.Print("\033[H\033[2J")
+	fmt.Print("\033[2J\033[H")
 }
 
 func InputUser(Label string) (string, error) {
@@ -28,7 +21,7 @@ func InputUser(Label string) (string, error) {
 	}
 	result, err := prompt.Run()
 	if err != nil {
-		return "", fmt.Errorf("✘ Prompt failed: %v", err)
+		return "", fmt.Errorf("✘ Prompt failed: %w", err)
 	}
 	return result, nil
 }
@@ -49,6 +42,58 @@ func Loading(msg string) chan bool {
 		}
 	}()
 	return stop
+}
+
+func getHistPath() string {
+	var histPath string
+	fileName := "animein-state.json"
+	dir, err := os.UserCacheDir()
+	if err != nil {
+		histPath = "." + fileName
+		return histPath
+	}
+	histPath = filepath.Join(dir, fileName)
+	return histPath
+}
+
+func SaveState(aniID string, epID string, title string) {
+	histPath := getHistPath()
+	state := map[string]string{
+		"movie_id":   aniID,
+		"episode_id": epID,
+		"title":      title,
+	}
+	data, _ := json.MarshalIndent(state, "", " ")
+	_ = os.WriteFile(histPath, data, 0644)
+}
+
+func LoadState() (map[string]string, error) {
+	histPath := getHistPath()
+	file, err := os.ReadFile(histPath)
+	if err != nil {
+		return nil, err
+	}
+	var state map[string]string
+	json.Unmarshal(file, &state)
+	return state, nil
+}
+
+func ShowState() {
+	showState := flag.Bool("show-state", false, "Tampilkan history tontonan terakhir")
+	flag.BoolVar(showState, "l", false, "Tampilkan history (shorthand)")
+	flag.Parse()
+	if *showState {
+		last, err := LoadState()
+		if err != nil {
+			fmt.Println("Belum ada history tontonan.")
+			os.Exit(0)
+
+		}
+		fmt.Printf("Terakhir ditonton: %s\n", last["title"])
+		fmt.Printf("Episode ID: %s\n", last["episode_id"])
+		fmt.Printf("Movie ID: %s\n", last["movie_id"])
+		os.Exit(0)
+	}
 }
 
 // vim: ft=go

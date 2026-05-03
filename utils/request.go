@@ -27,7 +27,7 @@ func SearchRequest(keyWord string) (*http.Response, error) {
 
 	req, err := http.NewRequest("GET", targetURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("utils.Request failed: %w", err)
+		return nil, fmt.Errorf("utils.SearchRequest failed: %w", err)
 	}
 	setHeaders(req)
 

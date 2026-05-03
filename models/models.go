@@ -1,38 +1,20 @@
 package models
 
-type Episodes struct {
+type SearchResponse struct {
 	Data struct {
-		Episode []Episode `json:"episode"`
+		Movie []Movie `json:"movie"`
 	} `json:"data"`
 }
 
-type Episode struct {
-	ID      string `json:"id"`
-	EpTitle string `json:"title"`
-	Index   string `json:"index"`
-	// Image        string `json:"image"`
-}
-
-type Detail struct {
+type DetailResponse struct {
 	Data struct {
 		MovieData Movie `json:"movie"`
 	} `json:"data"`
 }
 
-type Movie struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	/*
-		Description string `json:"synopsis"`
-		AltTitle    string `json:"synonyms"`
-		Genre       string `json:"genre"`
-	*/
-}
-
-// search
-type Movies struct {
+type EpisodesResponse struct {
 	Data struct {
-		Movie []Movie `json:"movie"`
+		Episode []Episode `json:"episode"`
 	} `json:"data"`
 }
 
@@ -42,12 +24,27 @@ type ServerResponse struct {
 	} `json:"data"`
 }
 
-type Server struct {
+type Movie struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Genre string `json:"genre"`
+	// Description string `json:"synopsis,omitempty"`
+	// AltTitle    string `json:"synonyms,omitempty"`
+}
+
+type Episode struct {
 	ID      string `json:"id"`
-	Link    string `json:"link"`
-	Quality string `json:"quality"`
-	Type    string `json:"type"`
-	// FileSize string `json:"key_file_size"`
+	EpTitle string `json:"title"`
+	Index   string `json:"index"`
+	// Image string `json:"image,omitempty"`
+}
+
+type Server struct {
+	ID       string `json:"id"`
+	Link     string `json:"link"`
+	Quality  string `json:"quality"`
+	Type     string `json:"type"`
+	FileSize string `json:"key_file_size,omitempty"`
 }
 
 type EpisodeResult struct {

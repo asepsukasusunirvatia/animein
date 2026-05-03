@@ -1,15 +1,16 @@
 package api
 
 import (
-	"codeberg.org/Asep5K/animein/models"
-	"codeberg.org/Asep5K/animein/utils"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
+
+	"codeberg.org/Asep5K/animein/models"
+	"codeberg.org/Asep5K/animein/utils"
 )
 
 var (
-	// episodeCache,streamCache = make(map[string][]models.Episode), make(map[string][]models.Server)
 	streamCache  = make(map[string][]models.Server)
 	episodeCache = make(map[string][]models.Episode)
 	cacheLock    sync.RWMutex
@@ -17,7 +18,7 @@ var (
 
 const (
 	BaseURL      = "https://animeinweb.com/"
-	baseEndpoint = BaseURL + "/api/proxy/3/2/"
+	baseEndpoint = BaseURL + "api/proxy/3/2/"
 )
 
 func reqEpsPage(aniID string, pageNum int) ([]models.Episode, error) {
@@ -28,9 +29,9 @@ func reqEpsPage(aniID string, pageNum int) ([]models.Episode, error) {
 	}
 	defer res.Body.Close()
 
-	var eps models.Episodes
+	var eps models.EpisodesResponse
 	if err := json.NewDecoder(res.Body).Decode(&eps); err != nil {
-		return nil, fmt.Errorf("GetEpisodesPage decode failed: %w", err)
+		return nil, fmt.Errorf("api.reqEpsPage decode failed: %w", err)
 	}
 	return eps.Data.Episode, nil
 }
@@ -47,7 +48,7 @@ func GetEpisodesCached(aniID string, pageNum int) ([]models.Episode, error) {
 
 	data, err := reqEpsPage(aniID, pageNum)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("api.GetEpisodesCached Error :%w", err)
 	}
 	cacheLock.Lock()
 	episodeCache[cacheKey] = data
@@ -63,25 +64,25 @@ func GetPageCount(aniID string) (int, error) {
 	if len(eps) == 0 {
 		return 0, fmt.Errorf("\033[9mid\033: '%s' belum rilis!\033[0m", aniID)
 	}
-	lastEp := utils.StrToInt(eps[0].Index)
+	lastEp, err := strconv.Atoi(eps[0].Index)
+	if err != nil {
+		return 0, fmt.Errorf("api.GetPageCount Erorr: %w", err)
+	}
 	if lastEp <= 30 {
 		return 0, nil
 	}
 	return (lastEp+30)/30 - 1, nil
 }
 
-func ParseEpisodes(episodes []models.Episode) <-chan models.EpisodeResult {
-	ch := make(chan models.EpisodeResult)
-	go func() {
-		defer close(ch)
-		for _, ep := range episodes {
-			ch <- models.EpisodeResult{
-				ID:      ep.ID,
-				EpTitle: ep.EpTitle,
-			}
+func ParseEpisodes(eps []models.Episode) []models.EpisodeResult {
+	res := make([]models.EpisodeResult, len(eps))
+	for i, ep := range eps {
+		res[i] = models.EpisodeResult{
+			ID:      ep.ID,
+			EpTitle: ep.EpTitle,
 		}
-	}()
-	return ch
+	}
+	return res
 }
 
 func reqEpsInfo(epID string) []models.Server {
@@ -116,22 +117,21 @@ func GetEpsInfo(epId string) []models.Server {
 func SearchAnime(keyWord string) ([]models.Movie, error) {
 	stop := utils.Loading("Mencari " + keyWord)
 	res, err := utils.SearchRequest(keyWord)
-	if err != nil {
+	defer func() {
 		stop <- true
+	}()
+	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
-	var info models.Movies
+	var info models.SearchResponse
 	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
-		stop <- true
-		return nil, err
+		return nil, fmt.Errorf("api.SearchAnime Error: %w", err)
 	}
 	if len(info.Data.Movie) == 0 {
-		stop <- true
 		return nil, fmt.Errorf("Tidak menemukan: '%s'", keyWord)
 	}
-	stop <- true
 	return info.Data.Movie, nil
 }
 
