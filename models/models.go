@@ -52,4 +52,6 @@ type EpisodeResult struct {
 	EpTitle string
 }
 
+type Dict map[string]string
+
 // vim: ft=go

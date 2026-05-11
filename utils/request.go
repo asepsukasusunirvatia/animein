@@ -4,60 +4,64 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"net/http"
+
+	"codeberg.org/Asep5K/animein/models"
 )
 
-func Request(url string) (*http.Response, error) {
+func createNewRequest(url string) (*http.Request, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("utils.Request failed: %w", err)
+		return nil, fmt.Errorf("utils.createNewRequest Error: %w", err)
 	}
 	setHeaders(req)
-	client := &http.Client{}
-
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("utils.Request failed: %w", err)
-	}
-
-	return res, nil
+	return req, nil
 }
 
-func SearchRequest(keyWord string) (*http.Response, error) {
-	targetURL := "https://animeinweb.com/api/proxy/3/2/explore/movie"
-
-	req, err := http.NewRequest("GET", targetURL, nil)
+func Reqwest[T any](url string, queryParams models.Dict) (T, error) {
+	var nill T
+	req, err := createNewRequest(url)
 	if err != nil {
-		return nil, fmt.Errorf("utils.SearchRequest failed: %w", err)
+		return nill, err
 	}
-	setHeaders(req)
-
-	// Set Query Parameters
-	query := req.URL.Query() // Ambil objek query bawaan URL
-	query.Add("page", "0")
-	query.Add("sort", "views")
-	query.Add("keyword", keyWord)
-
-	req.URL.RawQuery = query.Encode()
-
+	setQuery(req, queryParams)
 	client := &http.Client{}
-	res, err := client.Do(req) // Eksekusi dengan objek 'req'
-
+	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("utils.SearchRequest failed: %w", err)
+		return nill, fmt.Errorf("utils.Reqwest Error: %w", err)
 	}
 	if res.StatusCode != 200 {
-		return nil, fmt.Errorf("utils.SearchRequest failed: %d (%s)", res.StatusCode, res.Status)
+		return nill, fmt.Errorf("\r\033[5m\033[91mError: %v\033[0m", res.Status)
 	}
-	return res, nil
+	defer res.Body.Close()
+	result, err := JsonDecoder[T](res)
+	if err != nil {
+		return nill, fmt.Errorf("Error: %w", err)
+	}
+	return result, nil
 }
 
 func setHeaders(req *http.Request) {
-	userAgent := fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.0.0 Safari/537.36", 137+rand.IntN(7))
-	req.Header.Set("Proxy-Connection", "keep-alive")
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("x-proxy-secret", "animein-secure-proxy-key-123")
-	req.Header.Set("Referer", "https://animeinweb.com/")
+	auth := models.Dict{
+		"Accept":           "application/json, text/plain, */*",
+		"Referer":          "https://animeinweb.com",
+		"User-Agent":       fmt.Sprintf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%d.0.0.0 Safari/537.36", 137+rand.IntN(7)),
+		"x-proxy-secret":   "animein-secure-proxy-key-123",
+		"Proxy-Connection": "keep-alive",
+	}
+	for key, value := range auth {
+		req.Header.Set(key, value)
+	}
+}
+
+func setQuery(req *http.Request, params models.Dict) {
+	if len(params) == 0 {
+		return
+	}
+	query := req.URL.Query()
+	for key, value := range params {
+		query.Set(key, value)
+	}
+	req.URL.RawQuery = query.Encode()
 }
 
 // vim: ft=go

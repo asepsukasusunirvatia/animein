@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"sync"
@@ -22,18 +21,12 @@ const (
 )
 
 func reqEpsPage(aniID string, pageNum int) ([]models.Episode, error) {
-	targetURL := fmt.Sprintf("%smovie/episode/%s?page=%d", baseEndpoint, aniID, pageNum)
-	res, err := utils.Request(targetURL)
+	targetURL := fmt.Sprintf("%smovie/episode/%s", baseEndpoint, aniID)
+	res, err := utils.Reqwest[models.EpisodesResponse](targetURL, models.Dict{"page": strconv.Itoa(pageNum)})
 	if err != nil {
 		return nil, fmt.Errorf("GetEpisodesPage request failed: %w", err)
 	}
-	defer res.Body.Close()
-
-	var eps models.EpisodesResponse
-	if err := json.NewDecoder(res.Body).Decode(&eps); err != nil {
-		return nil, fmt.Errorf("api.reqEpsPage decode failed: %w", err)
-	}
-	return eps.Data.Episode, nil
+	return res.Data.Episode, nil
 }
 
 func GetEpisodesCached(aniID string, pageNum int) ([]models.Episode, error) {
@@ -71,7 +64,7 @@ func GetPageCount(aniID string) (int, error) {
 	if lastEp <= 30 {
 		return 0, nil
 	}
-	return (lastEp+30)/30 - 1, nil
+	return lastEp / 30, nil
 }
 
 func ParseEpisodes(eps []models.Episode) []models.EpisodeResult {
@@ -87,52 +80,50 @@ func ParseEpisodes(eps []models.Episode) []models.EpisodeResult {
 
 func reqEpsInfo(epID string) []models.Server {
 	targetURL := fmt.Sprintf("%sepisode/streamnew/%s", baseEndpoint, epID)
-	res, err := utils.Request(targetURL)
+	res, err := utils.Reqwest[models.ServerResponse](targetURL, nil)
 	if err != nil {
 		return nil
 	}
-	defer res.Body.Close()
-
-	var info models.ServerResponse
-	json.NewDecoder(res.Body).Decode(&info)
-	return info.Data.Server
+	return res.Data.Server
 }
 
-func GetEpsInfo(epId string) []models.Server {
+func GetEpsInfo(epID string) []models.Server {
 	cacheLock.RLock()
-	data, found := streamCache[epId]
+	data, found := streamCache[epID]
 	cacheLock.RUnlock()
 
 	if found {
 		return data
 	}
 
-	epsInfo := reqEpsInfo(epId)
+	epsInfo := reqEpsInfo(epID)
 	cacheLock.Lock()
-	streamCache[epId] = epsInfo
+	streamCache[epID] = epsInfo
 	cacheLock.Unlock()
 	return epsInfo
 }
 
-func SearchAnime(keyWord string) ([]models.Movie, error) {
+func SearchAnime(keyWord string, page int) ([]models.Movie, error) {
 	stop := utils.Loading("Mencari " + keyWord)
-	res, err := utils.SearchRequest(keyWord)
+	targetURL := "https://animeinweb.com/api/proxy/3/2/explore/movie"
+	query := models.Dict{
+		"page":    strconv.Itoa(page),
+		"sort":    "views",
+		"keyword": keyWord,
+	}
+
+	res, err := utils.Reqwest[models.SearchResponse](targetURL, query)
 	defer func() {
 		stop <- true
 	}()
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
-
-	var info models.SearchResponse
-	if err := json.NewDecoder(res.Body).Decode(&info); err != nil {
-		return nil, fmt.Errorf("api.SearchAnime Error: %w", err)
-	}
-	if len(info.Data.Movie) == 0 {
+	movie := res.Data.Movie
+	if len(movie) == 0 {
 		return nil, fmt.Errorf("Tidak menemukan: '%s'", keyWord)
 	}
-	return info.Data.Movie, nil
+	return movie, nil
 }
 
 // vim: ft=go

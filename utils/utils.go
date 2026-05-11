@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -94,6 +95,14 @@ func ShowState() {
 		fmt.Printf("Movie ID: %s\n", last["movie_id"])
 		os.Exit(0)
 	}
+}
+
+func JsonDecoder[T any](res *http.Response) (T, error) {
+	var data T
+	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
+		return data, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+	return data, nil
 }
 
 // vim: ft=go
