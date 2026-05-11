@@ -40,7 +40,7 @@ func StartApp() {
 func getAniID(initialQuery string) (string, string) {
 	var result []models.Movie
 	if initialQuery != "" {
-		res, err := api.SearchAnime(initialQuery)
+		res, err := api.SearchAnime(initialQuery, 0)
 		if err != nil {
 			fmt.Printf("✘ %v\n", err)
 			result = trySearch()
@@ -95,7 +95,7 @@ func trySearch() []models.Movie {
 			return nil
 		}
 		utils.ClearScreen()
-		res, err := api.SearchAnime(input)
+		res, err := api.SearchAnime(input, 0)
 		if err == nil {
 			return res
 		}
