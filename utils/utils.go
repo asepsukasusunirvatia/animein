@@ -100,7 +100,7 @@ func ShowState() {
 func JsonDecoder[T any](res *http.Response) (T, error) {
 	var data T
 	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-		return data, fmt.Errorf("Decoder Error: %w", err)
+		return data, fmt.Errorf("failed to parse JSON response: %w", err)
 	}
 	return data, nil
 }
